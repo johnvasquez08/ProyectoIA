@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detección en tiempo real con YOLO</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <h1>Detección en tiempo real con YOLO</h1>
+    <div class="container">
+        <div class="video-container">
+            <h2>Video en tiempo real</h2>
+            <img src="{{ url_for('video_feed') }}" alt="Video en tiempo real">
+        </div>
+        <div class="capture-container">
+            <h2>Captura de pantalla</h2>
+            <img id="capture" src="" alt="Captura de pantalla">
+        </div>
+        <div class="centroid-container">
+            <h2>Coordenadas del centroide</h2>
+            <p id="centroid-coords">Esperando detección...</p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
