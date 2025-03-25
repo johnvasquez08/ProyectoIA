@@ -9,7 +9,7 @@ camera_ip = "http://192.168.80.32:8080/video"  # Para IP Webcam
 # camera_ip = "http://192.168.1.100:4747/video"  # Para DroidCam
 
 # Iniciar la captura de video desde la cámara IP
-cap = cv2.VideoCapture(camera_ip)
+cap = cv2.VideoCapture(3)
 
 # Verificar si la cámara se abrió correctamente
 if not cap.isOpened():
