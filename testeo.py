@@ -186,8 +186,7 @@ def RunVision():
             continue
             
         try:
-            resized_frame = cv2.resize(frame, (640, 640))
-            results = model.predict(source=resized_frame, conf=0.5, verbose=False)
+            results = model.predict(source=frame, conf=0.5, verbose=False)
             annotated_frame = results[0].plot()
             detections = results[0].boxes.data  # Obtener las cajas delimitadoras y las clases
 

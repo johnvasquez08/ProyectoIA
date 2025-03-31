@@ -5,11 +5,13 @@ import cv2
 model = YOLO("runs/detect/train/weights/best.pt")  # Reemplaza con la ruta a tu best.pt
 
 # URL de la cámara IP (cambia por la dirección IP de tu teléfono)
-camera_ip = "http://192.168.80.32:8080/video"  # Para IP Webcam
+camera_ip = "http://172.16.142.144:8080/video"  # Para IP Webcam
 # camera_ip = "http://192.168.1.100:4747/video"  # Para DroidCam
 
 # Iniciar la captura de video desde la cámara IP
 cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # Ancho
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 640) 
 
 # Verificar si la cámara se abrió correctamente
 if not cap.isOpened():
@@ -44,6 +46,11 @@ while True:
         # Calcular el centroide (punto central de la caja delimitadora)
         centroid_x = (x1 + x2) // 2
         centroid_y = (y1 + y2) // 2
+        if centroid_x >= 310 or centroid_x <= 370:
+            Ymitad = centroid_y
+            print("posicion del objeto en Y", Ymitad)
+            Ymitad = None
+
 
         # Dibujar un círculo en el centroide
         cv2.circle(annotated_frame, (centroid_x, centroid_y), 5, (0, 255, 0), -1)  # Círculo verde
