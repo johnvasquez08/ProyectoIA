@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 3
+names: ['Azul', 'Blanco', 'Rojo']
+
+roboflow:
+  workspace: pdi-xroyr
+  project: oriented-tqllh
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/pdi-xroyr/oriented-tqllh/dataset/1
