@@ -1,67 +1,96 @@
 from ultralytics import YOLO
 import cv2
+import numpy as np
 
-# Cargar el modelo entrenado
-model = YOLO("runs/obb/train/weights/best.pt")  # Reemplaza con la ruta a tu best.pt
+# Cargar el modelo entrenado en YOLOv8-OBB
+model = YOLO("runs/obb/train/weights/best.pt")
 
-# URL de la cámara IP (cambia por la dirección IP de tu teléfono)
-camera_ip = "http://172.16.142.144:8080/video"  # Para IP Webcam
-# camera_ip = "http://192.168.1.100:4747/video"  # Para DroidCam
+# Datos de calibración
+camera_matrix = np.array([
+    [653.04080082, 0.0, 361.37645218],
+    [0.0, 873.17495949, 243.84850055],
+    [0.0, 0.0, 1.0]
+], dtype=np.float32)
 
-# Iniciar la captura de video desde la cámara IP
-cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  # Ancho
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 640) 
+dist_coeffs = np.array(
+    [[0.20966857, -0.27011417, -0.02140793, -0.00045373, 0.16516693]], 
+    dtype=np.float32)
+
+# Iniciar la captura de video desde la cámara
+cap = cv2.VideoCapture(1)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)  
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)  
 
 # Verificar si la cámara se abrió correctamente
 if not cap.isOpened():
-    print("Error: No se pudo conectar a la cámara IP.")
+    print("Error: No se pudo conectar a la cámara.")
     exit()
+
+# Variables para almacenar mapas de corrección de distorsión
+mapx = None
+mapy = None
 
 # Bucle para procesar cada frame del video
 while True:
-    # Capturar un frame
     ret, frame = cap.read()
     if not ret:
         print("Error: No se pudo capturar el frame.")
         break
 
-    # Redimensionar el frame a 640x640
-    resized_frame = cv2.resize(frame, (640, 640))
+    # Obtener dimensiones del frame
+    height, width = frame.shape[:2]
+    
+    # Crear mapas de corrección de distorsión si aún no existen
+    if mapx is None or mapy is None:
+        # Obtener nuevas matrices de cámara para imágenes sin distorsión
+        new_camera_matrix, roi = cv2.getOptimalNewCameraMatrix(
+            camera_matrix, dist_coeffs, (width, height), 1, (width, height))
+        
+        # Calcular mapas de corrección de distorsión
+        mapx, mapy = cv2.initUndistortRectifyMap(
+            camera_matrix, dist_coeffs, None, new_camera_matrix, 
+            (width, height), cv2.CV_32FC1)
+    
+    # Aplicar corrección de distorsión
+    undistorted_frame = cv2.remap(frame, mapx, mapy, cv2.INTER_LINEAR)
+    
+    # Redimensionar el frame a 640x640 para la detección
+    resized_frame = cv2.resize(undistorted_frame, (640, 640))
 
-    # Realizar la detección en el frame redimensionado
+    # Realizar la detección en el frame redimensionado y corregido
     results = model.predict(source=resized_frame, conf=0.5)
 
     # Obtener el frame anotado (con bounding boxes y etiquetas)
-    annotated_frame = results[0].plot()  # Frame con las bounding boxes dibujadas
+    annotated_frame = results[0].plot()
 
     # Verificar si hay detecciones
-    if results[0].boxes is not None and results[0].boxes.data is not None:
-        detections = results[0].boxes.data  # Obtener las cajas delimitadoras y las clases
+    if results[0].obb is not None and results[0].obb.data is not None:
+        detections = results[0].obb.data  # Obtener las cajas orientadas
+        
         for detection in detections:
-            # Obtener las coordenadas de la caja delimitadora (x1, y1, x2, y2)
-            x1, y1, x2, y2 = detection[:4].int().tolist()
-            
-            # Calcular el centroide
-            centroid_x = (x1 + x2) // 2
-            centroid_y = (y1 + y2) // 2
-            
-            if 310 <= centroid_x <= 370:
-                Ymitad = centroid_y
-                print("Posición del objeto en Y:", Ymitad)
-                Ymitad = None
+            # YOLOv8-OBB devuelve los datos en el formato: (cx, cy, w, h, θ, conf, class)
+            cx, cy, w, h, theta = detection[:5].tolist()
 
-            # Dibujar el centroide
-            cv2.circle(annotated_frame, (centroid_x, centroid_y), 5, (0, 255, 0), -1)
-            cv2.putText(annotated_frame, f"({centroid_x}, {centroid_y})", (centroid_x + 10, centroid_y - 10),
+            # Dibujar un círculo en el centroide detectado
+            cv2.circle(annotated_frame, (int(cx), int(cy)), 5, (0, 255, 0), -1)  # Verde
+
+            # Mostrar coordenadas del centroide en la imagen
+            cv2.putText(annotated_frame, f"({int(cx)}, {int(cy)})", 
+                        (int(cx) + 10, int(cy) - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    else:
-        print("No se detectaron objetos en este frame.")
 
-    # Mostrar el frame
-    cv2.imshow("Detección en tiempo real (Cámara IP)", annotated_frame)
+            # Condición de ubicación en el eje X (ajustar si es necesario)
+            if 215 >= cy <= 465:
+                print("Posición del objeto en Y:", cy)
 
-    # Salir del bucle si se presiona la tecla 'q'
+    # Agregar indicador de que la imagen está corregida
+    cv2.putText(annotated_frame, "Imagen corregida", (annotated_frame.shape[1] - 250, 30), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
+    # Mostrar el frame con anotaciones
+    cv2.imshow("Detección con cámara calibrada", annotated_frame)
+
+    # Salir del bucle si se presiona 'q'
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
