@@ -30,36 +30,35 @@ while True:
     resized_frame = cv2.resize(frame, (640, 640))
 
     # Realizar la detección en el frame redimensionado
-    results = model.predict(source=resized_frame, conf=0.5)  # conf es el umbral de confianza
+    results = model.predict(source=resized_frame, conf=0.5)
 
     # Obtener el frame anotado (con bounding boxes y etiquetas)
     annotated_frame = results[0].plot()  # Frame con las bounding boxes dibujadas
 
-    # Obtener las detecciones
-    detections = results[0].boxes.data  # Obtener las cajas delimitadoras y las clases
+    # Verificar si hay detecciones
+    if results[0].boxes is not None and results[0].boxes.data is not None:
+        detections = results[0].boxes.data  # Obtener las cajas delimitadoras y las clases
+        for detection in detections:
+            # Obtener las coordenadas de la caja delimitadora (x1, y1, x2, y2)
+            x1, y1, x2, y2 = detection[:4].int().tolist()
+            
+            # Calcular el centroide
+            centroid_x = (x1 + x2) // 2
+            centroid_y = (y1 + y2) // 2
+            
+            if 310 <= centroid_x <= 370:
+                Ymitad = centroid_y
+                print("Posición del objeto en Y:", Ymitad)
+                Ymitad = None
 
-    # Recorrer cada detección
-    for detection in detections:
-        # Obtener las coordenadas de la caja delimitadora (x1, y1, x2, y2)
-        x1, y1, x2, y2 = detection[:4].int().tolist()
+            # Dibujar el centroide
+            cv2.circle(annotated_frame, (centroid_x, centroid_y), 5, (0, 255, 0), -1)
+            cv2.putText(annotated_frame, f"({centroid_x}, {centroid_y})", (centroid_x + 10, centroid_y - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    else:
+        print("No se detectaron objetos en este frame.")
 
-        # Calcular el centroide (punto central de la caja delimitadora)
-        centroid_x = (x1 + x2) // 2
-        centroid_y = (y1 + y2) // 2
-        if centroid_x >= 310 or centroid_x <= 370:
-            Ymitad = centroid_y
-            print("posicion del objeto en Y", Ymitad)
-            Ymitad = None
-
-
-        # Dibujar un círculo en el centroide
-        cv2.circle(annotated_frame, (centroid_x, centroid_y), 5, (0, 255, 0), -1)  # Círculo verde
-
-        # (Opcional) Mostrar las coordenadas del centroide
-        cv2.putText(annotated_frame, f"({centroid_x}, {centroid_y})", (centroid_x + 10, centroid_y - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-
-    # Mostrar el frame con las bounding boxes y los centroides
+    # Mostrar el frame
     cv2.imshow("Detección en tiempo real (Cámara IP)", annotated_frame)
 
     # Salir del bucle si se presiona la tecla 'q'
