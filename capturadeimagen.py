@@ -2,7 +2,7 @@ from ultralytics import YOLO
 import cv2
 
 # Cargar el modelo entrenado
-model = YOLO("runs/detect/train/weights/best.pt")  # Reemplaza con la ruta a tu best.pt
+model = YOLO("runs/obb/train/weights/best.pt")  # Reemplaza con la ruta a tu best.pt
 
 # URL de la cámara IP (cambia por la dirección IP de tu teléfono)
 camera_ip = "http://172.16.142.144:8080/video"  # Para IP Webcam

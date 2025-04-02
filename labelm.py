@@ -3,8 +3,8 @@ import os
 import torch
 
 # Configuración
-DATASET_PATH = "C:/Users/USER/Downloads/ProyectoIA/Oriented.v1i.yolov8"  # Cambia esto con la ruta de tu dataset
-MODEL_SAVE_PATH = "C:/Users/USER/Downloads/ProyectoIA/Nuevo modelo"
+DATASET_PATH = "C:/Users/johnd/Documents/proyectofinal/ProyectoIA/Oriented.v1i.yolov8"  # Cambia esto con la ruta de tu dataset
+MODEL_SAVE_PATH = "C:/Users/johnd/Documents/proyectofinal/ProyectoIA/Nuevo modelo"
 
 # Entrenar el modelo YOLOv8 con OBB (Oriented Bounding Boxes)
 model = YOLO("yolov8n-obb.pt")  # Modelo base compatible con OBB
@@ -20,8 +20,8 @@ else:
 model.train(
     data=os.path.join(DATASET_PATH, "data.yaml"),  # Configuración del dataset
     epochs=50,  # Número de épocas de entrenamiento
-    imgsz=512,  # Tamaño de la imagen reducido para optimización
-    batch=32,  # Aumentar batch si la GPU lo permite
+    imgsz=640,  # Tamaño de la imagen reducido para optimización
+    batch=16,  # Aumentar batch si la GPU lo permite
     device=device  # Asignar el dispositivo detectado
 )
 
