@@ -103,13 +103,26 @@ def detection_loop():
             detections = results[0].obb.data
             for det in detections:
                 cx, cy, w, h, theta = det[:5].tolist()
-                if cy >= 180 and cy <= 320:
+                class_id = int(det[5])
+                class_name = model.names[class_id]
+                
+                if 147 <= cy <= 270:
                     centroideguardadoX = cx
-                    objetodetectado = 
+                    objetodetectado = class_name  # GUARDAMOS AQUÍ
                     theta = theta
                     tiempo = time.time()
+                if 'objetodetectado' in locals():
+                    info_text = [
+                        f"Objeto: {objetodetectado}",
+                        f"Centroide X: {int(centroideguardadoX)}",
+                        f"Ángulo: {round(theta, 2)}"
+                    ]
+                    for i, text in enumerate(info_text):
+                        cv2.putText(annotated, text, (10, 20 + i * 20), cv2.FONT_HERSHEY_SIMPLEX,
+                                    0.6, (0, 255, 255), 2)
+
                 cv2.circle(annotated, (int(cx), int(cy)), 5, (0, 255, 0), -1)
-                cv2.putText(annotated, f"({int(cx)}, {int(cy)})", (int(cx)+10, int(cy)-10),
+                cv2.putText(annotated, f"{class_name} ({int(cx)}, {int(cy)})", (int(cx)+10, int(cy)-10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
 
         cv2.imshow("Detección en Área de Trabajo", annotated)
