@@ -1,12 +1,14 @@
 import cv2
 import numpy as np
 from ultralytics import YOLO
+import time
 
 # Configuración de ArUco
 aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
 parameters = cv2.aruco.DetectorParameters()
 expected_ids = [1, 2, 3, 4]  # Marcadores esperados
 output_size = (400, 400)  # Tamaño del área transformada
+
 
 # Modelo YOLO
 model = YOLO("runs/obb/train/weights/best.pt")
@@ -101,6 +103,11 @@ def detection_loop():
             detections = results[0].obb.data
             for det in detections:
                 cx, cy, w, h, theta = det[:5].tolist()
+                if cy >= 180 and cy <= 320:
+                    centroideguardadoX = cx
+                    objetodetectado = 
+                    theta = theta
+                    tiempo = time.time()
                 cv2.circle(annotated, (int(cx), int(cy)), 5, (0, 255, 0), -1)
                 cv2.putText(annotated, f"({int(cx)}, {int(cy)})", (int(cx)+10, int(cy)-10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
