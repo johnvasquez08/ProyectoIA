@@ -13,10 +13,17 @@ enableStatus_robot = None
 robotErrorState = False
 globalLockValue = threading.Lock()
 Enable = True  # Variable para controlar el estado de activación del robot
+A = [315, -11, 70, 10]
+REC = [400, 0, -121, 0]
+BC = [270, -154, 77, -32,4, -313, 111, -80]
+AC = [270, -154, 77, -32,315, -11, 70, 10]
+CABAJO = [2, -295, 39, -78]
+C = [4, -313, 111, -80]
+PRUEBA = [395.3,-111.12,-120,0]
 
 def ConnectRobot():
     try:
-        ip = "192.168.0.11"
+        ip = "192.168.0.12"
         dashboardPort = 29999
         movePort = 30003
         feedPort = 30004
@@ -32,6 +39,8 @@ def ConnectRobot():
 
 def RunPoint(move: DobotApiMove, point_list: list):
     move.MovL(point_list[0], point_list[1], point_list[2], point_list[3])
+def RunArco(move: DobotApiMove, point_list: list):
+    move.Arc(point_list[0], point_list[1], point_list[2], point_list[3],point_list[4], point_list[5], point_list[6], point_list[7])
 
 def GetFeed(feed: DobotApi):
     global current_actual
@@ -244,29 +253,15 @@ if __name__ == '__main__':
                     tiempofinal = tiempo_fin - tiempo_inicio
                     print(f"Tiempo transcurrido: {tiempofinal: .4f} segundos")
             elif opcion == "6":
-                    SpeedL(dashboard, velocidad)
-                    DO(dashboard,1,1)
-                    time.sleep(0.5)
-                    RunPoint(move, point_a)
-                    WaitArrive(point_a)
-                    RunPoint(move, point_b)
-                    WaitArrive(point_b)
-                    
-                    
-                    
-                    
-                    RunPoint(move, point_d)
-                    DO(dashboard,1,0)
-
-                    WaitArrive(point_d)
-                    
-                    time.sleep(0.5)
-                    DO(dashboard,2,1)
-                    time.sleep(0.5)
-                    DO(dashboard,2,0)
-                    RunPoint(move, point_a)
-                    WaitArrive(point_a)
-
+                    SpeedL(dashboard, 80)
+                    empezo = time.time()
+                    RunPoint(move, PRUEBA)
+                    WaitArrive(PRUEBA)
+                    termino = time.time()
+                    tiempofinal = termino - empezo
+                    RunPoint(move, A)
+                    print(f"Tiempo transcurrido: {tiempofinal: .4f} segundos")                    
+       
 
                     
             elif opcion == "4":

@@ -28,7 +28,7 @@ def show_menu():
 
 def setup_workspace():
     global calibrated, warp_matrix
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
     cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
@@ -79,7 +79,7 @@ def detection_loop():
         print("\n[!] El área de trabajo no está calibrada. Configure primero.")
         return
 
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
     cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
@@ -102,13 +102,14 @@ def detection_loop():
         if results[0].obb is not None and results[0].obb.data is not None:
             detections = results[0].obb.data
             for det in detections:
-                cx, cy, w, h, theta = det[:5].tolist()
-                class_id = int(det[5])
-                class_name = model.names[class_id]
+    # Los datos OBB suelen ser: [x, y, ancho, alto, ángulo, confianza, class_id]
+                cx, cy, w, h, theta, conf, class_id = det[:7].tolist()  # Ajustar índices
+                class_id = int(class_id)  # Asegurar que es entero
+                class_name = model.names[class_id]  # Obtener nombre correcto
                 
                 if 147 <= cy <= 270:
                     centroideguardadoX = cx
-                    objetodetectado = class_name  # GUARDAMOS AQUÍ
+                    objetodetectado = class_name  # Clase actualizada
                     theta = theta
                     tiempo = time.time()
                 if 'objetodetectado' in locals():

@@ -18,16 +18,16 @@ enableStatus_robot = None
 robotErrorState = False
 globalLockValue = threading.Lock()
 Enable = True
-velocidad = 50
+velocidad = 30
 robot_connected = False
 
 # Posiciones predefinidas
 posiciones = {
     "default": [248, 40, 0, 0],
-    "A": [265, 150, -132, 0],
-    "B": [265, -150, -132, 0],
-    "C": [259, -109, 10, 0],
-    "D": [259, 100, 10, 0],
+    "A": [315, -11, 70, 10],
+    "REC": [400, 0, -121, 0],
+    "B": [240, -182, 145, -44],
+    "C": [2, -260, 58, -97],
     "E": [259, 100, -136, 0]
 }
 
@@ -46,7 +46,7 @@ def ConnectRobot():
     """Intenta conectar con el robot Dobot"""
     global dashboard, move, feed, robot_connected
     try:
-        ip = "192.168.0.11"
+        ip = "192.168.0.12"
         dashboardPort = 29999
         movePort = 30003
         feedPort = 30004
@@ -80,8 +80,11 @@ def InitializeVision():
     global model, cap
     try:
         log("Inicializando sistema de visión...")
-        model = YOLO("runs/detect/train/weights/best.pt")
-        cap = cv2.VideoCapture(0)
+        model = YOLO("C:/Users/johnd/Documents/proyectofinal/ProyectoIA/runs/obb/train/weights/best.pt")
+        cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
+        cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
         
         if not cap.isOpened():
             log("× No se pudo conectar a la cámara", "error")
@@ -189,22 +192,20 @@ def RunVision():
             resized_frame = cv2.resize(frame, (640, 640))
             results = model.predict(source=resized_frame, conf=0.5, verbose=False)
             annotated_frame = results[0].plot()
-            detections = results[0].boxes.data  # Obtener las cajas delimitadoras y las clases
+            detections = results[0].obb.data  # Obtener las cajas delimitadoras y las clases
 
             # Recorrer cada detección
             for detection in detections:
                 # Obtener las coordenadas de la caja delimitadora (x1, y1, x2, y2)
-                x1, y1, x2, y2 = detection[:4].int().tolist()
+                cx, cy, w, h, theta, conf, class_id = detection[:7].tolist()  # Ajustar índices
 
                 # Calcular el centroide (punto central de la caja delimitadora)
-                centroid_x = (x1 + x2) // 2
-                centroid_y = (y1 + y2) // 2
+                
 
                 # Dibujar un círculo en el centroide
-                cv2.circle(annotated_frame, (centroid_x, centroid_y), 5, (0, 255, 0), -1)  # Círculo verde
 
                 # (Opcional) Mostrar las coordenadas del centroide
-                cv2.putText(annotated_frame, f"({centroid_x}, {centroid_y})", (centroid_x + 10, centroid_y - 10),
+                cv2.putText(annotated_frame, f"({cx}, {cy})", (cx + 10, cy - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             cv2.imshow("Visión", annotated_frame)
             
@@ -269,12 +270,15 @@ def MostrarMenu():
     print("1. Obtener posición actual")
     print("2. Activar/Desactivar robot")
     print("3. Mover a posición A")
-    print("4. Mover a posición B")
+    print("4. Mover a posición de recodigda")
     print("5. Limpiar errores")
     print("6. Cambiar velocidad")
     print("7. Iniciar/Detener visión")
     print("8. Reconectar robot")
     print("9. Salir")
+    print("11. Posicion B")
+    print("12. Posicion C")
+
     print("="*50)
 
 def main():
@@ -318,12 +322,18 @@ def main():
                 ActivarRobot()
                 
             elif opcion == "3":
-                if RunPoint(posiciones["default"]):
+                if RunPoint(posiciones["A"]):
                     print("> Movimiento a posición A iniciado <")
                     
             elif opcion == "4":
+                if RunPoint(posiciones["REC"]):
+                    print("> Movimiento a posición de RECOGIDA <")
+            elif opcion == "11":
                 if RunPoint(posiciones["B"]):
                     print("> Movimiento a posición B iniciado <")
+            elif opcion == "12":
+                if RunPoint(posiciones["C"]):
+                    print("> Movimiento a posición C iniciado <")
                     
             elif opcion == "5" and robot_connected:
                 try:
