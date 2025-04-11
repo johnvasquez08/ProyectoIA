@@ -205,8 +205,7 @@ def RunVision():
                 # Dibujar un círculo en el centroide
 
                 # (Opcional) Mostrar las coordenadas del centroide
-                cv2.putText(annotated_frame, f"({cx}, {cy})", (cx + 10, cy - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                
             cv2.imshow("Visión", annotated_frame)
             
             if cv2.waitKey(1) & 0xFF == ord('q'):

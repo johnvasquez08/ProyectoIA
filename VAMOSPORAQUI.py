@@ -111,11 +111,13 @@ def detection_loop():
                     centroideguardadoX = cx
                     objetodetectado = class_name  # Clase actualizada
                     theta = theta
+                    centroideguardadoY = cy
                     tiempo = time.time()
                 if 'objetodetectado' in locals():
                     info_text = [
                         f"Objeto: {objetodetectado}",
                         f"Centroide X: {int(centroideguardadoX)}",
+                        f"Centroide Y: {int(centroideguardadoY)}",
                         f"Ángulo: {round(theta, 2)}"
                     ]
                     for i, text in enumerate(info_text):
