@@ -254,13 +254,7 @@ if __name__ == '__main__':
                     print(f"Tiempo transcurrido: {tiempofinal: .4f} segundos")
             elif opcion == "6":
                     SpeedL(dashboard, 80)
-                    empezo = time.time()
-                    RunPoint(move, PRUEBA)
-                    WaitArrive(PRUEBA)
-                    termino = time.time()
-                    tiempofinal = termino - empezo
-                    RunPoint(move, A)
-                    print(f"Tiempo transcurrido: {tiempofinal: .4f} segundos")                    
+                                      
        
 
                     
