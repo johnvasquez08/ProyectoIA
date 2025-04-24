@@ -30,8 +30,8 @@ MatrizRUT = np.array([[0,1,0,211.841],[1,0,0,-254.42],[0,0,1,-152.26],[0,0,0,1]]
 MatrizUPT = np.array([[0,-1,0,Pxu],[1,0,0,Pyu],[0,0,1,-65],[0,0,0,1]])
 
 # Posiciones predefinidas
-A = [315, -11, 40, 10]
-PRUEBA = [395.3, -111.12, -120, 0]
+A = [360, 0, -42, 10]
+PRUEBA = [360, 0, -127, 10]
 
 # Visión artificial
 aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
@@ -44,6 +44,8 @@ detection_active = False
 detection_thread = None
 xanterior = 0
 yanterior = 0
+tiempo = 0
+velocidadbanda = 0
 
 # Estado de conexión del robot
 robot_connected = False
@@ -112,6 +114,15 @@ def RunPoint(move, point_list):
     except Exception as e:
         agregar_log(f"Error al ejecutar el punto: {e}")
         return False
+def RunArco(move: DobotApiMove, point_list: list):
+    if not robot_connected or move is None:
+        agregar_log("Error: El robot no está conectado")
+        return False
+    try:
+        move.Arc(point_list[0], point_list[1], point_list[2], point_list[3],point_list[4], point_list[5], point_list[6], point_list[7])
+    except Exception as e:
+        agregar_log(f"Error al ejecutar el punto: {e}")
+        return False
 
 def GetFeed(feed):
     global current_actual, algorithm_queue, enableStatus_robot, robotErrorState, robot_connected
@@ -170,6 +181,9 @@ def SpeedL(dashboard, speed):
     except Exception as e:
         agregar_log(f"Error al establecer la velocidad lineal: {e}")
         return False
+def DO(dashboard, index, status):
+        string = "DO({:d},{:d})".format(index, status)
+        return dashboard.sendRecvMsg(string)
 
 def ClearError(dashboard):
     if not robot_connected or dashboard is None:
@@ -286,7 +300,7 @@ def frame_to_base64(frame):
 
 # Detección en hilo
 def detection_loop(image_update_callback):
-    global warp_matrix, calibrated, detection_active, detection_data, Coord2Send, xanterior
+    global warp_matrix, calibrated, detection_active, detection_data, Coord2Send, xanterior, tiempo, velocidadbanda
     if not calibrated:
         agregar_log("[!] El área de trabajo no está calibrada. Configure primero.")
         return
@@ -321,23 +335,31 @@ def detection_loop(image_update_callback):
                             detection_data["tiempo"] = time.time()
                             detection_data["nueva_deteccion"] = True
                     if len(Coord2Send) == 2:
-                        CentimetroYCamara = (Coord2Send[1] * 20.2)/400
-                        CentrimetroY = (CentimetroYCamara - 40)*10
+                        CentimetroYCamara = (((Coord2Send[1] * 20.6)/400)*10)
+                        CentrimetroY = (-350)
                         CentrimetroX = (((Coord2Send[0] * 26.2)/400)*10)
+                        velocidadbanda = 150
+                        tiempo = (350+CentimetroYCamara)/velocidadbanda
+                        tiempodelay = tiempo - 1.
+                        agregar_log(f"Centimetro Y Camara es: {CentimetroYCamara} ")
+                        agregar_log(f"El tiempo de delay fue: {tiempodelay} segundos")
                         P = np.array([[CentrimetroX],[CentrimetroY],[28], [1]])
                         paso1 = np.dot(MatrizRUT,MatrizUPT)
                         Pos = np.dot(paso1, P)
                         valores = Pos.flatten().tolist()
                         xactual, yactual, z, w = Pos.flatten()
                         Coords = [xactual, yactual, -130, 10]
-                        if abs(abs(xactual)-abs(xanterior)) > 10:
-                            time.sleep(2.9)
+                        if abs(abs(xactual)-abs(xanterior)) > 3:
+                            SpeedL(dashboard,90)
+                            DO(dashboard,1,1)
+                            time.sleep(tiempodelay)
                             t1=time.time()
                             RunPoint(move, Coords)
                             t2= time.time()
                             tfinal = t2 - t1
                             agregar_log(f"El tiempo fue {tfinal: .4f}")
                             RunPoint(move, A)
+                            DO(dashboard,1,0)
                             
                         Coord2Send=[]
                         xanterior = xactual
@@ -386,7 +408,7 @@ def main(page: ft.Page):
         ActivarRobot(dashboard, feed)
         actualizar_log()
     def on_posicion_a(e):
-        SpeedL(dashboard, int(velocidad.value))
+        SpeedL(dashboard, 90)
         if RunPoint(move, A):
             WaitArrive(A)
             agregar_log("Movido a posición A")
@@ -394,7 +416,7 @@ def main(page: ft.Page):
             agregar_log("No se pudo ejecutar el movimiento a A")
         actualizar_log()
     def on_prueba(e):
-        SpeedL(dashboard, int(velocidad.value))
+        SpeedL(dashboard, 90)
         if RunPoint(move, PRUEBA):
             WaitArrive(PRUEBA)
             agregar_log("Movido a PRUEBA")
