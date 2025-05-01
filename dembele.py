@@ -9,6 +9,7 @@ import cv2
 import base64
 from io import BytesIO
 from ultralytics import YOLO
+from math import pi
 
 # --- IMPORTA TU API DEL ROBOT ---
 from dobot_api import DobotApiDashboard, DobotApi, DobotApiMove, MyType, alarmAlarmJsonFile
@@ -30,7 +31,7 @@ MatrizRUT = np.array([[0,1,0,211.841],[1,0,0,-254.42],[0,0,1,-152.26],[0,0,0,1]]
 MatrizUPT = np.array([[0,-1,0,Pxu],[1,0,0,Pyu],[0,0,1,-65],[0,0,0,1]])
 
 # Posiciones predefinidas
-A = [360, 0, -42, 10]
+A = [360, 0, -42, 0]
 PRUEBA = [360, 0, -127, 10]
 
 # Visión artificial
@@ -46,6 +47,8 @@ xanterior = 0
 yanterior = 0
 tiempo = 0
 velocidadbanda = 0
+angulo = 0
+factordecorrecion = 0
 
 # Estado de conexión del robot
 robot_connected = False
@@ -243,7 +246,10 @@ def ObtenerPosicion(dashboard):
     except Exception as e:
         agregar_log(f"Error al obtener posición: {e}")
         return None
-
+def SpeedFactor(dashboard: DobotApiDashboard, speed):
+        
+        string = "SpeedFactor({:d})".format(speed)
+        return dashboard.sendRecvMsg(string)
 def ReconectarRobot():
     global dashboard, move, feed, robot_connected, feed_thread, error_thread
     robot_connected = False
@@ -300,7 +306,7 @@ def frame_to_base64(frame):
 
 # Detección en hilo
 def detection_loop(image_update_callback):
-    global warp_matrix, calibrated, detection_active, detection_data, Coord2Send, xanterior, tiempo, velocidadbanda
+    global warp_matrix, calibrated, detection_active, detection_data, Coord2Send, xanterior, tiempo, velocidadbanda, angulo, factordecorrecion
     if not calibrated:
         agregar_log("[!] El área de trabajo no está calibrada. Configure primero.")
         return
@@ -323,7 +329,7 @@ def detection_loop(image_update_callback):
                 cx, cy, w, h, theta, conf, class_id = det[:7].tolist()
                 class_id = int(class_id)
                 class_name = model.names[class_id]
-                if 147 <= cy <= 270:
+                if 147 <= cy <= 250:
                     if len(Coord2Send) != 2:
                         with detection_lock:
                             detection_data["objeto"] = class_name
@@ -336,11 +342,20 @@ def detection_loop(image_update_callback):
                             detection_data["nueva_deteccion"] = True
                     if len(Coord2Send) == 2:
                         CentimetroYCamara = (((Coord2Send[1] * 20.6)/400)*10)
+                        angulo = int(float(180/pi)* float(theta))
                         CentrimetroY = (-350)
                         CentrimetroX = (((Coord2Send[0] * 26.2)/400)*10)
                         velocidadbanda = 150
+                        if velocidadbanda >= 60 and velocidadbanda <= 90:
+                            factordecorrecion = 15
+                        if velocidadbanda >= 91 and velocidadbanda <= 130:
+                            factordecorrecion = 8
+                        if velocidadbanda >= 131 and velocidadbanda <= 175:
+                            factordecorrecion = 5.5
+                        if velocidadbanda >= 176 and velocidadbanda <= 205:
+                            factordecorrecion = 3
                         tiempo = (350+CentimetroYCamara)/velocidadbanda
-                        tiempodelay = tiempo - 1.
+                        tiempodelay = tiempo - 0.9
                         agregar_log(f"Centimetro Y Camara es: {CentimetroYCamara} ")
                         agregar_log(f"El tiempo de delay fue: {tiempodelay} segundos")
                         P = np.array([[CentrimetroX],[CentrimetroY],[28], [1]])
@@ -348,9 +363,18 @@ def detection_loop(image_update_callback):
                         Pos = np.dot(paso1, P)
                         valores = Pos.flatten().tolist()
                         xactual, yactual, z, w = Pos.flatten()
-                        Coords = [xactual, yactual, -130, 10]
+                        CoordsPrevias = [xactual, yactual+factordecorrecion, -42, 0]
+                        CoordsPreviasCorregidas = [xactual, yactual+factordecorrecion, -42, angulo]
+                        Coords = [xactual, yactual+factordecorrecion, -129, 0]
+                        A2 = [360, 0, -42, angulo]
+                        B = [239,-212,38,angulo,16,-230,44,angulo]
+                        C = [16,-230,-72,angulo]
+                        D = [16,-230,44,angulo]
+                        DA = [239,-212,38,angulo,360, 0, -42, 0]
                         if abs(abs(xactual)-abs(xanterior)) > 3:
+                            SpeedFactor(dashboard,100)
                             SpeedL(dashboard,90)
+                            RunPoint(move, CoordsPrevias)
                             DO(dashboard,1,1)
                             time.sleep(tiempodelay)
                             t1=time.time()
@@ -358,14 +382,20 @@ def detection_loop(image_update_callback):
                             t2= time.time()
                             tfinal = t2 - t1
                             agregar_log(f"El tiempo fue {tfinal: .4f}")
+                            RunPoint(move, CoordsPreviasCorregidas)
                             RunPoint(move, A)
                             DO(dashboard,1,0)
-                            
+                            """RunArco(move, B)
+                            RunPoint(move, C)
+                            DO(dashboard,1,0)
+                            RunPoint(move, D)
+                            RunArco(move, DA)"""
                         Coord2Send=[]
                         xanterior = xactual
                         yanterior = yactual
+                
                 cv2.circle(annotated, (int(cx), int(cy)), 5, (0, 255, 0), -1)
-                cv2.putText(annotated, f"{class_name} ({int(cx)}, {int(cy)})", (int(cx)+10, int(cy)-10),
+                cv2.putText(annotated, f"Angulo({angulo}),({int(cx)}, {int(cy)}),{class_name}", (int(cx)+10, int(cy)-10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
         # Actualizar imagen en la UI
         if image_update_callback:
@@ -401,6 +431,26 @@ def main(page: ft.Page):
     # CONTROL DE ROBOT
     # ===========
     velocidad = ft.TextField(label="Velocidad", value="50", width=100)
+    def on_succion_on(e):
+        DO(dashboard, 1, 1)
+        agregar_log("Succión activada")
+        actualizar_log()
+
+    def on_succion_off(e):
+        DO(dashboard, 1, 0)
+        agregar_log("Succión desactivada")
+        actualizar_log()
+
+    def on_expulsion_on(e):
+        DO(dashboard, 2, 1)
+        agregar_log("Expulsión activada")
+        actualizar_log()
+
+    def on_expulsion_off(e):
+        DO(dashboard, 2, 0)
+        agregar_log("Expulsión desactivada")
+        actualizar_log()
+
     def on_obtener_posicion(e):
         ObtenerPosicion(dashboard)
         actualizar_log()
@@ -408,6 +458,7 @@ def main(page: ft.Page):
         ActivarRobot(dashboard, feed)
         actualizar_log()
     def on_posicion_a(e):
+        SpeedFactor(dashboard,100)
         SpeedL(dashboard, 90)
         if RunPoint(move, A):
             WaitArrive(A)
@@ -416,6 +467,7 @@ def main(page: ft.Page):
             agregar_log("No se pudo ejecutar el movimiento a A")
         actualizar_log()
     def on_prueba(e):
+        SpeedFactor(dashboard,100)
         SpeedL(dashboard, 90)
         if RunPoint(move, PRUEBA):
             WaitArrive(PRUEBA)
@@ -436,6 +488,7 @@ def main(page: ft.Page):
             ft.ElevatedButton("Posición A", on_click=on_posicion_a),
             ft.ElevatedButton("Posición PRUEBA", on_click=on_prueba),
             ft.ElevatedButton("Limpiar Error", on_click=on_limpiar_error),
+            
         ]),
         ft.Row([
             ft.Text("Velocidad:"),
@@ -443,7 +496,13 @@ def main(page: ft.Page):
         ]),
         ft.Row([
             ft.ElevatedButton("Reconectar Robot", on_click=on_reconectar)
-        ])
+        ]),
+        ft.Row([
+        ft.ElevatedButton("Succión ON", on_click=on_succion_on, bgcolor=ft.colors.GREEN_200),
+        ft.ElevatedButton("Succión OFF", on_click=on_succion_off, bgcolor=ft.colors.RED_200),
+        ft.ElevatedButton("Expulsión ON", on_click=on_expulsion_on, bgcolor=ft.colors.BLUE_200),
+        ft.ElevatedButton("Expulsión OFF", on_click=on_expulsion_off, bgcolor=ft.colors.ORANGE_200),
+    ]),
     ], spacing=10)
 
     # ===========

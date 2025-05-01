@@ -8,11 +8,12 @@ if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 
 # Inicializar la cámara
-cap = cv2.VideoCapture(3)
+cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
 
 # Configurar resolución (opcional)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 640)
+cap.set(cv2.CAP_PROP_AUTOFOCUS,0)
 
 # Verificar si la cámara se abrió correctamente
 if not cap.isOpened():
