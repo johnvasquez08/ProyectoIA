@@ -60,7 +60,7 @@ error_thread = None
 
 # Modelo YOLO
 try:
-    model = YOLO("runs/obb/train/weights/best.pt")
+    model = YOLO("runsnuev/obb/train/weights/best.pt")
     vision_available = True
 except Exception as e:
     print(f"Error al cargar el modelo YOLO: {e}")
@@ -345,17 +345,17 @@ def detection_loop(image_update_callback):
                         angulo = int(float(180/pi)* float(theta))
                         CentrimetroY = (-350)
                         CentrimetroX = (((Coord2Send[0] * 26.2)/400)*10)
-                        velocidadbanda = 150
+                        velocidadbanda = 100
                         if velocidadbanda >= 60 and velocidadbanda <= 90:
-                            factordecorrecion = 15
-                        if velocidadbanda >= 91 and velocidadbanda <= 130:
-                            factordecorrecion = 8
-                        if velocidadbanda >= 131 and velocidadbanda <= 175:
-                            factordecorrecion = 5.5
+                            factordecorrecion = 20
+                        if velocidadbanda >= 91 and velocidadbanda <= 130 and cx <= 121:
+                            factordecorrecion = 5
+                        if velocidadbanda >= 131 and velocidadbanda <= 175 <= 121:
+                            factordecorrecion = 5
                         if velocidadbanda >= 176 and velocidadbanda <= 205:
-                            factordecorrecion = 3
+                            factordecorrecion = 0
                         tiempo = (350+CentimetroYCamara)/velocidadbanda
-                        tiempodelay = tiempo - 0.9
+                        tiempodelay = tiempo - 0.8
                         agregar_log(f"Centimetro Y Camara es: {CentimetroYCamara} ")
                         agregar_log(f"El tiempo de delay fue: {tiempodelay} segundos")
                         P = np.array([[CentrimetroX],[CentrimetroY],[28], [1]])
@@ -365,6 +365,7 @@ def detection_loop(image_update_callback):
                         xactual, yactual, z, w = Pos.flatten()
                         CoordsPrevias = [xactual, yactual+factordecorrecion, -42, 0]
                         CoordsPreviasCorregidas = [xactual, yactual+factordecorrecion, -42, angulo]
+                        CoordsDejada = [xactual, yactual+factordecorrecion, -120, angulo]
                         Coords = [xactual, yactual+factordecorrecion, -129, 0]
                         A2 = [360, 0, -42, angulo]
                         B = [239,-212,38,angulo,16,-230,44,angulo]
@@ -382,9 +383,12 @@ def detection_loop(image_update_callback):
                             t2= time.time()
                             tfinal = t2 - t1
                             agregar_log(f"El tiempo fue {tfinal: .4f}")
-                            RunPoint(move, CoordsPreviasCorregidas)
-                            RunPoint(move, A)
+                            """RunPoint(move, CoordsPreviasCorregidas)"""
+                            RunPoint(move, CoordsDejada)
                             DO(dashboard,1,0)
+                            time.sleep(2)
+                            RunPoint(move, A2)
+                            RunPoint(move, A)
                             """RunArco(move, B)
                             RunPoint(move, C)
                             DO(dashboard,1,0)
