@@ -24,7 +24,7 @@ radio_tambor = 58.705  # Radio del tambor en mm
 
 # Configuración del cliente Modbus RTU
 client = ModbusSerialClient(
-    port='COM3',  # Cambiado al puerto COM4
+    port='COM4',  # Cambiado al puerto COM4
     baudrate=9600,
     stopbits=1,
     bytesize=8,
@@ -78,6 +78,9 @@ move = None
 feed = None
 feed_thread = None
 error_thread = None
+
+# Variable para el modo de operación: CLASIFICACION o CORRECCION
+modo_operacion = "CLASIFICACION"
 
 # Modelo YOLO
 try:
@@ -291,6 +294,20 @@ def ReconectarRobot():
         return False
 
 # =========================
+# FUNCIÓN PARA CAMBIAR EL MODO DE OPERACIÓN
+# =========================
+
+def cambiar_modo_operacion():
+    global modo_operacion
+    if modo_operacion == "CLASIFICACION":
+        modo_operacion = "CORRECCION"
+        agregar_log(f"Modo cambiado a: {modo_operacion}")
+    else:
+        modo_operacion = "CLASIFICACION"
+        agregar_log(f"Modo cambiado a: {modo_operacion}")
+    return modo_operacion
+
+# =========================
 # FUNCIONES DE VISIÓN ARTIFICIAL
 # =========================
 
@@ -342,7 +359,7 @@ def get_vel():
 
 # Detección en hilo
 def detection_loop(image_update_callback):
-    global warp_matrix, calibrated, detection_active, detection_data, Coord2Send,contadorazul,zheta, xanterior, tiempo, velocidadbanda, angulo, factordecorrecion, contadorblanco,contadorrojo, vel
+    global warp_matrix,modo_operacion, calibrated, detection_active, detection_data, Coord2Send,contadorazul,zheta, xanterior, tiempo, velocidadbanda, angulo, factordecorrecion, contadorblanco,contadorrojo, vel, modo_operacion
     if not calibrated:
         agregar_log("[!] El área de trabajo no está calibrada. Configure primero.")
         return
@@ -381,7 +398,7 @@ def detection_loop(image_update_callback):
                         angulo = int(float(180/pi)* float(theta))
                         CentrimetroY = (-350)
                         CentrimetroX = (((Coord2Send[0] * 26.2)/400)*10)
-                        velocidadbanda = get_vel()
+                        velocidadbanda = 98.9
                         if velocidadbanda >= 60 and velocidadbanda <= 90 and cx <= 121:
                             factordecorrecion = 25
                         elif velocidadbanda >= 60 and velocidadbanda <= 90 and cx > 121:
@@ -400,6 +417,7 @@ def detection_loop(image_update_callback):
                             factordecorrecion = 6
                         elif velocidadbanda >= 176 and velocidadbanda <= 205 and cx > 121:
                             factordecorrecion = 2
+                        
                         tiempo = (350+CentimetroYCamara)/velocidadbanda
                         tiempodelay = tiempo - 0.8
                         agregar_log(f"Centimetro Y Camara es: {CentimetroYCamara} ")
@@ -411,59 +429,88 @@ def detection_loop(image_update_callback):
                         xactual, yactual, z, w = Pos.flatten()
                         CoordsPrevias = [xactual, yactual+factordecorrecion, -42, 0]
                         CoordsPreviasCorregidas = [xactual, yactual+factordecorrecion, -42, angulo]
-                        CoordsDejada = [xactual, yactual+factordecorrecion, -120, angulo]
+                        """CoordsDejada = [xactual, yactual+factordecorrecion, -120, angulo]"""
+                        CoordsDejada = [360, 0, -120, angulo]
                         Coords = [xactual, yactual+factordecorrecion, -129, 0]
                         A2 = [360, 0, -42, angulo]
-                        B = [239,-212,38,angulo,16,-230,44,angulo]
+                        B = [223,205,53,angulo,40,283,15,angulo]
                         if class_name == "Azul":
                             descuento = -10*contadorazul
                             zheta = -140-descuento
                             contadorazul += 1
-                            C = [16,-230,zheta,angulo]
+                            C = [46,289,zheta,angulo]
                             agregar_log(f"El zheta es: {zheta}")
                         elif class_name == "Rojo":
                             descuento = -10*contadorrojo
                             zheta = -140-descuento
                             contadorrojo += 1
-                            C = [16,-300,zheta,angulo]
+                            C = [-56,285,zheta,angulo]
                         elif class_name == "Blanco":
                             descuento = -10*contadorblanco
                             zheta = -140-descuento
                             contadorblanco += 1
-                            C = [16,-360,zheta,angulo]
-                        D = [16,-230,44,angulo]
-                        DA = [239,-212,38,angulo,360, 0, -42, 0]
+                            C = [-11,394,zheta,angulo]
+                        D = [40,283,15,angulo]
+                        DA = [223,205,53,angulo,360, 0, -42, 0]
                         agregar_log(f"Class ID {class_name}")
-                        if abs(abs(xactual)-abs(xanterior)) > 3:
-                            SpeedFactor(dashboard,100)
-                            SpeedL(dashboard,90)
-                            RunPoint(move, CoordsPrevias)
-                            DO(dashboard,1,1)
-                            time.sleep(tiempodelay)
-                            t1=time.time()
-                            RunPoint(move, Coords)
-                            t2= time.time()
-                            tfinal = t2 - t1
-                            agregar_log(f"El tiempo fue {tfinal: .4f}")
-                            """RunPoint(move, CoordsPreviasCorregidas)"""
-                            RunPoint(move, CoordsPreviasCorregidas)
-                            RunPoint(move, A2)
-                            RunArco(move, B)
-                            RunPoint(move, C)
-                            WaitArrive(C)
-                            DO(dashboard,1,0)
-                            time.sleep(0.3)
-                            DO(dashboard,2,1)
-                            time.sleep(1)
-                            DO(dashboard,2,0)
-                            RunPoint(move, D)
-                            RunArco(move, DA)
+                         # Usar el modo_operacion como condicional para el procesamiento
+                        if modo_operacion == "CLASIFICACION":    
+                            if abs(abs(xactual)-abs(xanterior)) > 3:
+                                agregar_log(f"El modo de operacion es {modo_operacion}")
+                                SpeedFactor(dashboard,100)
+                                SpeedL(dashboard,90)
+                                RunPoint(move, CoordsPrevias)
+                                DO(dashboard,1,1)
+                                time.sleep(tiempodelay)
+                                t1=time.time()
+                                RunPoint(move, Coords)
+                                t2= time.time()
+                                tfinal = t2 - t1
+                                agregar_log(f"El tiempo fue {tfinal: .4f}")
+                                """RunPoint(move, CoordsPreviasCorregidas)"""
+                                RunPoint(move, CoordsPreviasCorregidas)
+                                RunPoint(move, A2)
+                                RunArco(move, B)
+                                RunPoint(move, C)
+                                WaitArrive(C)
+                                DO(dashboard,1,0)
+                                time.sleep(0.3)
+                                DO(dashboard,2,1)
+                                time.sleep(1)
+                                DO(dashboard,2,0)
+                                RunPoint(move, D)
+                                RunArco(move, DA)
+                        elif modo_operacion == "CORRECCION":
+                            if abs(abs(xactual)-abs(xanterior)) > 3:
+                                agregar_log(f"El modo de operacion es {modo_operacion}")
+                                SpeedFactor(dashboard,100)
+                                SpeedL(dashboard,90)
+                                RunPoint(move, CoordsPrevias)
+                                DO(dashboard,1,1)
+                                time.sleep(tiempodelay)
+                                t1=time.time()
+                                RunPoint(move, Coords)
+                                t2= time.time()
+                                tfinal = t2 - t1
+                                agregar_log(f"El tiempo fue {tfinal: .4f}")
+                                """RunPoint(move, CoordsPreviasCorregidas)"""
+                                RunPoint(move, CoordsPreviasCorregidas)
+                                RunPoint(move, A2)
+                                RunPoint(move, CoordsDejada)
+                                WaitArrive(CoordsDejada)
+                                DO(dashboard,1,0)
+                                time.sleep(0.8)
+                                DO(dashboard,2,1)
+                                time.sleep(2)
+                                DO(dashboard,2,0)
+                                RunPoint(move, A2)
+                                
                         Coord2Send=[]
                         xanterior = xactual
                         yanterior = yactual
-                angulomostrado = int(float(180/pi)* float(theta))
+                
                 cv2.circle(annotated, (int(cx), int(cy)), 5, (0, 255, 0), -1)
-                cv2.putText(annotated, f"Angulo({angulomostrado}),({int(cx)}, {int(cy)}),{class_name}", (int(cx)+10, int(cy)-10),
+                cv2.putText(annotated, f"Angulo({angulo}),({int(cx)}, {int(cy)}),{class_name}", (int(cx)+10, int(cy)-10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
         # Actualizar imagen en la UI
         if image_update_callback:
@@ -499,6 +546,31 @@ def main(page: ft.Page):
     # CONTROL DE ROBOT
     # ===========
     velocidad = ft.TextField(label="Velocidad", value="50", width=100)
+    # Texto que muestra el modo actual
+    modo_texto = ft.Text(f"Modo actual: {modo_operacion}", size=16, weight=ft.FontWeight.BOLD)
+    
+    # Botón para cambiar el modo
+    def on_cambiar_modo(e):
+        global modo_operacion
+        modo_operacion = cambiar_modo_operacion()
+        modo_texto.value = f"Modo actual: {modo_operacion}"
+        # Cambiar color del botón según el modo
+        if modo_operacion == "CLASIFICACION":
+            cambiar_modo_btn.bgcolor = ft.colors.GREEN
+            cambiar_modo_btn.text = "Cambiar a CORRECCIÓN"
+        else:
+            cambiar_modo_btn.bgcolor = ft.colors.AMBER
+            cambiar_modo_btn.text = "Cambiar a CLASIFICACIÓN"
+        page.update()
+        actualizar_log()
+    
+    # Botón inicial con color según el modo predeterminado
+    cambiar_modo_btn = ft.ElevatedButton(
+        "Cambiar a CORRECCIÓN", 
+        on_click=on_cambiar_modo,
+        bgcolor=ft.colors.GREEN
+    )
+    
     def on_succion_on(e):
         DO(dashboard, 1, 1)
         agregar_log("Succión activada")
@@ -550,6 +622,11 @@ def main(page: ft.Page):
         ReconectarRobot()
         actualizar_log()
     control_robot = ft.Column([
+        # Añadir el texto del modo y el botón para cambiar el modo
+        ft.Row([
+            modo_texto,
+            cambiar_modo_btn
+        ]),
         ft.Row([
             ft.ElevatedButton("Obtener posición", on_click=on_obtener_posicion),
             ft.ElevatedButton("Activar/Desactivar", on_click=on_activar_robot),
